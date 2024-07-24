@@ -1,11 +1,13 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-using namespace std;
+// using namespace std;
+
+bool had_error = false;
 
 // & means the input variable filename is a reference to an std::string 
 // pass by reference avoids copying the string and is more efficient
-std::vector<char> processFile(const std::string &filename){
+std::string processFile(const std::string &filename){
     // std::ifstream is the input file stream class
     // we instantiate it below
     // std::ios::binary opens the file in binary mode
@@ -39,19 +41,59 @@ std::vector<char> processFile(const std::string &filename){
         throw std::runtime_error("BASHIKA ERROR | Unable to read file");
     }
 
-    return buffer;
+    std::string buffer_string(buffer.begin(), buffer.end());
+
+    return buffer_string;
 }
 
-void runFile(cont std::string &file_path){
+void run(const std::string &source);
+
+void runFile(const std::string &file_path){
     run(processFile(file_path));
 }
+
 void runPrompt(){
-    cout << "running prompt";
+    std::string line;
+
+    while (true){
+        std::cout << "bashika> ";
+        if (!std::getline(std::cin, line)){
+            break;
+        }
+        run(line);
+        had_error = false;
+    }
+}
+
+void run(const std::string &source){
+    // std::cout << source << "\n";
+    Scanner scanner(source);
+    std::vector<Token> tokens = scanner.scanTokens();
+
+    for (const Token &token : tokens){
+        // we add an "\n" character here because it is more efficient
+        // we could use std::endl which1G adds the "\n" character and flushes the output buffer
+        // or std::flush which simply flushes the output buffer
+        // however that is an expensive operation and using "\n" is much more efficient
+        // probably only really need to use std::endl or std::flush if code takes long to run and we want to debug before program finishes running
+        // (that way we don't have to wait a long time for the program to finish or print out stuff later than where the print statement is in the program)
+        std::cout << token << "\n";
+    }
+
+}
+
+void report(int line_number, std::string where, std::string error_message){
+    cout << "[Line " << line_number << "] Error " << where << ": " << error_message << "\n";
+    had_error = true;
+}
+
+void error(int line_number, std::string error_message){
+    report(line_number, "", error_message);
 }
 
 int main(int argc, char* argv[]){
     if (argc > 2){
-        cout << "Usage: bashika [script]";
+        std::cout << "Usage: bashika [script]";
         return 0;
     }
     else if (argc == 2){
@@ -59,6 +101,14 @@ int main(int argc, char* argv[]){
     }
     else {
         runPrompt();
+    }
+
+    if (had_error){
+        // could use return 65 here but std::exit(65) can be used anywhere in the code
+        // however std::exit(65) does not allow for stack unwinding and destructors are not called for local objects
+        // and it also doesn't guarantee destruction of static objects
+        // basically std::exit(65) terminates the program regardless of where we are in the call stack
+        std::exit(65);
     }
 
     return 0;
